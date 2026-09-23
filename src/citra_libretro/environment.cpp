@@ -123,6 +123,10 @@ bool SetControllerInfo(const retro_controller_info info[]) {
     return environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)info);
 }
 
+bool SetSupportNoGame(bool supports_no_game) {
+    return environ_cb(RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &supports_no_game);
+}
+
 bool SetPixelFormat(const retro_pixel_format fmt) {
     return environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, (void*)&fmt);
 }
@@ -252,6 +256,8 @@ void OnConfigureEnvironment() {
     };
 
     SetControllerInfo(ports);
+
+    SetSupportNoGame(true);
 }
 
 void SetFramebufferCallback(retro_hw_get_current_framebuffer_t cb) {

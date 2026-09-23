@@ -15,6 +15,8 @@ struct CoreSettings {
 
     std::string file_path;
 
+    bool cartridge_boot_to_home_menu = false;
+
     float analog_deadzone = 1.f;
 
     LibRetro::CStickFunction analog_function;

@@ -42,13 +42,16 @@
 #include "common/settings.h"
 #include "common/string_util.h"
 #include "core/core.h"
+#include "core/file_sys/ncch_container.h"
 #include "core/frontend/applets/default_applets.h"
 #include "core/frontend/image_interface.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/memory.h"
 #include "core/hle/kernel/process.h"
 #include "core/loader/loader.h"
+#include "core/loader/smdh.h"
 #include "core/memory.h"
+#include "core/system_titles.h"
 
 #ifdef HAVE_LIBRETRO_VFS
 #include <streams/file_stream_transforms.h>
@@ -514,9 +517,90 @@ bool retro_load_game(const struct retro_game_info* info) {
 
     UpdateSettings();
 
-    // If using HW rendering, don't actually load the game here. azahar wants
-    // the graphics context ready and available before calling System::Load.
-    LibRetro::settings.file_path = info->path;
+    // Checking if the core tries to load without content
+    bool booting_without_content = (info == nullptr);
+    bool game_is_cartridge = false;
+    std::bitset<32> compatible_regions;
+    bool should_find_home_menu = false;
+
+    // If no content is loaded, set all regions to compatible and try to find a menu
+    if (booting_without_content) {
+        compatible_regions.set();
+        should_find_home_menu = true;
+    } else {
+        // If using HW rendering, don't actually load the game here. azahar wants
+        // the graphics context ready and available before calling System::Load.
+        LibRetro::settings.file_path = info->path;
+
+        if (LibRetro::settings.cartridge_boot_to_home_menu == true) {
+            FileSys::NCCHContainer container(info->path);
+            game_is_cartridge = container.LoadHeader() == Loader::ResultStatus::Success && container.IsNCSD();
+
+            // If the content is not a cartridge, boot directly. Else get the region lockout.
+            if (!game_is_cartridge) {
+                LOG_WARNING(Frontend, "Boot to HOME Menu is enabled but \"{}\" is not a cartridge. Booting it directly.", info->path);
+                LibRetro::DisplayMessage("Content is not a cartridge. Booting content directly.");
+            } else {
+                should_find_home_menu = true;
+                std::vector<u8> smdh_buffer;
+                auto game_loader = Loader::GetLoader(info->path);
+                if (game_loader && game_loader->ReadIcon(smdh_buffer) == Loader::ResultStatus::Success && Loader::IsValidSMDH(smdh_buffer)) {
+                    Loader::SMDH smdh;
+                    std::memcpy(&smdh, smdh_buffer.data(), sizeof(Loader::SMDH));
+                    compatible_regions = smdh.region_lockout;
+                }
+            }
+        }
+    }
+
+    // Check if the correct region's 3ds HOME Menu is installed.
+    std::string home_menu_path;
+    if (should_find_home_menu) {
+        const u32 configured_region = Settings::values.region_value.GetValue();
+
+        if (configured_region != Settings::REGION_VALUE_AUTO_SELECT && compatible_regions.test(configured_region)) {
+            std::string candidate = Core::GetHomeMenuNcchPath(configured_region);
+            if (!candidate.empty() && FileUtil::Exists(candidate)) {
+                home_menu_path = std::move(candidate);
+                LOG_INFO(Frontend, "HOME Menu of the configured region {} found: \"{}\".", configured_region, home_menu_path);
+            }
+        }
+
+        if (home_menu_path.empty()) {
+            for (u32 region = 0; region < Core::NUM_SYSTEM_TITLE_REGIONS; region++) {
+                if (compatible_regions.test(region)) {
+                    std::string candidate = Core::GetHomeMenuNcchPath(region);
+                    if (!candidate.empty() && FileUtil::Exists(candidate)) {
+                        home_menu_path = std::move(candidate);
+                        LOG_INFO(Frontend, "HOME Menu of compatible region {} found: \"{}\".", region, home_menu_path);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Determine if we should start a 3ds HOME Menu or the content directly.
+    bool menu_is_present = !home_menu_path.empty();
+    if (booting_without_content) {
+        if (!menu_is_present) {
+            LOG_WARNING(Frontend, "No HOME Menu is installed.");
+            LibRetro::DisplayMessage("No HOME Menu is installed.");
+            return false;
+        }
+        LOG_INFO(Frontend, "Booting HOME Menu \"{}\" with no cartridge inserted.", home_menu_path);
+        LibRetro::settings.file_path = home_menu_path;
+    } else if (game_is_cartridge) {
+        if (!menu_is_present) {
+            LOG_WARNING(Frontend, "Boot to HOME Menu is enabled but no compatible HOME Menu is installed. Booting content directly.");
+            LibRetro::DisplayMessage("No compatible HOME Menu installed. Booting content directly.");
+        } else {
+            LOG_INFO(Frontend, "Booting HOME Menu \"{}\" with \"{}\" in the cartridge slot.", home_menu_path, info->path);
+            LibRetro::DisplayMessage("Booting HOME Menu with content inserted in the cartridge slot.");
+            Core::System::GetInstance().InsertCartridge(info->path);
+            LibRetro::settings.file_path = home_menu_path;
+        }
+    }
 
     // Early validation: check that the ROM can be loaded before committing to
     // the HW renderer setup. Without this, failures (encrypted ROMs, bad files)
