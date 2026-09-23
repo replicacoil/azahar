@@ -47,6 +47,7 @@ namespace system {
 static constexpr const char* is_new_3ds = citra_setting(BaseKeys::is_new_3ds);
 static constexpr const char* region_value = citra_setting(BaseKeys::region_value);
 static constexpr const char* language_value = citra_setting(BaseKeys::language_value);
+static constexpr const char* cartridge_boot_to_home_menu = "citra_cartridge_boot_to_home_menu";
 } // namespace system
 
 namespace audio {
@@ -258,6 +259,24 @@ static constexpr retro_core_option_v2_definition option_definitions[] = {
             { nullptr, nullptr }
         },
         "english"
+    },
+    {
+        config::system::cartridge_boot_to_home_menu,
+        "Boot game cartridges to HOME menu",
+        "Boot cartridge to HOME menu",
+        "When the loaded content is a game cartridge, start the HOME Menu of the selected region "
+        "in the System Region option with the content inserted in the cartridge slot instead of booting it directly "
+        "if the content is compatible with the region, otherwise it will still boot directly. "
+        "Requires that the HOME Menu of the specific region to be installed."
+        "Other content formats and installed titles are unaffected.",
+        nullptr,
+        config::category::system,
+        {
+            { config::disabled, "Disabled" },
+            { config::enabled, "Enabled" },
+            { nullptr, nullptr }
+        },
+        config::disabled
     },
 
     // Audio Category
@@ -910,6 +929,9 @@ static void ParseSystemOptions(void) {
 
     LibRetro::settings.language_value =
         GetLanguageValue(LibRetro::FetchVariable(config::system::language_value, "English"));
+
+    LibRetro::settings.cartridge_boot_to_home_menu =
+        LibRetro::FetchVariable(config::system::cartridge_boot_to_home_menu, config::disabled) == config::enabled;
 }
 
 static Settings::AudioEmulation GetAudioEmulation(const std::string& name) {

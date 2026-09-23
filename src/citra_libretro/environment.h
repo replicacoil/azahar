@@ -66,6 +66,9 @@ Settings::GraphicsAPI GetPreferredRenderer();
 /// Displays information about the kinds of controllers that this Citra recreates.
 bool SetControllerInfo(const retro_controller_info info[]);
 
+/// Declares that this core can be started with no content selected ("Start Core").
+bool SetSupportNoGame(bool supports_no_game);
+
 /// Sets the memory maps for the core.
 bool SetMemoryMaps(const retro_memory_map* map);
 
