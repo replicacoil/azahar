@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "retroarch-home-menu" ]
   schedule:
-    - cron: '0 */6 * * *'   # check upstream every 6 hours; adjust or remove as you like
+    - cron: '0 0 1 * *'   # check upstream every 6 hours; adjust or remove as you like
   workflow_dispatch: {}      # lets you trigger a run manually from the Actions tab
 
 permissions:
