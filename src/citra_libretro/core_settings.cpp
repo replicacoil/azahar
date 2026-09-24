@@ -44,6 +44,7 @@ static constexpr const char* cpu_clock_percentage = citra_setting(BaseKeys::cpu_
 
 namespace system {
 static constexpr const char* is_new_3ds = citra_setting(BaseKeys::is_new_3ds);
+static constexpr const char* apply_region_free_patch = citra_setting(BaseKeys::apply_region_free_patch);
 static constexpr const char* region_value = citra_setting(BaseKeys::region_value);
 static constexpr const char* language_value = citra_setting(BaseKeys::language_value);
 static constexpr const char* cartridge_boot_to_home_menu = "citra_cartridge_boot_to_home_menu";
@@ -195,6 +196,22 @@ static constexpr retro_core_option_v2_definition option_definitions[] = {
             { nullptr, nullptr }
         },
         "New 3DS"
+    },
+    {
+        config::system::apply_region_free_patch,
+        "Apply Region-Free Patch",
+        "Region-Free Patch",
+        "Patch installed applications so they ignore the console's region lock and run "
+        "regardless of the configured 3DS System Region. Enabled by default, matching "
+        "the standalone frontend's default.",
+        nullptr,
+        config::category::system,
+        {
+            { config::enabled, "Enabled" },
+            { config::disabled, "Disabled" },
+            { nullptr, nullptr }
+        },
+        config::enabled
     },
     {
         config::system::region_value,
@@ -900,6 +917,9 @@ static Service::CFG::SystemLanguage GetLanguageValue(const std::string& name) {
 static void ParseSystemOptions(void) {
     Settings::values.is_new_3ds =
         LibRetro::FetchVariable(config::system::is_new_3ds, "New 3DS") == "New 3DS";
+
+    Settings::values.apply_region_free_patch =
+        LibRetro::FetchVariable(config::system::apply_region_free_patch, config::enabled) == config::enabled;
 
     Settings::values.region_value =
         GetRegionValue(LibRetro::FetchVariable(config::system::region_value, "Auto"));

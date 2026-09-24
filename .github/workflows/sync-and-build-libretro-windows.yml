@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "retroarch-home-menu" ]
   schedule:
-    - cron: '0 */6 * * *'   # check upstream every 6 hours; adjust or remove as you like
+    - cron: '0 0 1 * *'    # check upstream once a month, at 00:00 UTC on the 1st
   workflow_dispatch: {}      # lets you trigger a run manually from the Actions tab
 
 permissions:
@@ -25,6 +25,8 @@ jobs:
 
       - name: Merge upstream/retroarch-live into this fork
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote add upstream https://github.com/azahar-emu/azahar.git
           git fetch upstream retroarch-live
           git merge upstream/retroarch-live --no-edit
