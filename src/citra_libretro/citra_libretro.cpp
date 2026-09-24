@@ -562,7 +562,7 @@ bool retro_load_game(const struct retro_game_info* info) {
             std::string candidate = Core::GetHomeMenuNcchPath(configured_region);
             if (!candidate.empty() && FileUtil::Exists(candidate)) {
                 home_menu_path = std::move(candidate);
-                LOG_INFO(Frontend, "HOME Menu of the configured region {} found: \"{}\".", configured_region, home_menu_path);
+                LOG_INFO(Frontend, "HOME Menu of the configured region {} found and compatible: \"{}\".", configured_region, home_menu_path);
             }
         }
 
@@ -571,6 +571,7 @@ bool retro_load_game(const struct retro_game_info* info) {
                 if (compatible_regions.test(region)) {
                     std::string candidate = Core::GetHomeMenuNcchPath(region);
                     if (!candidate.empty() && FileUtil::Exists(candidate)) {
+                        Settings::values.region_value.SetValue(region);
                         home_menu_path = std::move(candidate);
                         LOG_INFO(Frontend, "HOME Menu of compatible region {} found: \"{}\".", region, home_menu_path);
                         break;
@@ -589,6 +590,7 @@ bool retro_load_game(const struct retro_game_info* info) {
             return false;
         }
         LOG_INFO(Frontend, "Booting HOME Menu \"{}\" with no cartridge inserted.", home_menu_path);
+        // IF REGION = CH or TW then turn off NEW 3ds MODE
         LibRetro::settings.file_path = home_menu_path;
     } else if (game_is_cartridge) {
         if (!menu_is_present) {
@@ -597,6 +599,7 @@ bool retro_load_game(const struct retro_game_info* info) {
         } else {
             LOG_INFO(Frontend, "Booting HOME Menu \"{}\" with \"{}\" in the cartridge slot.", home_menu_path, info->path);
             LibRetro::DisplayMessage("Booting HOME Menu with content inserted in the cartridge slot.");
+            // IF REGION = CH or TW then turn off NEW 3ds MODE
             Core::System::GetInstance().InsertCartridge(info->path);
             LibRetro::settings.file_path = home_menu_path;
         }
