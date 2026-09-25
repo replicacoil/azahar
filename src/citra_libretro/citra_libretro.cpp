@@ -520,8 +520,8 @@ bool retro_load_game(const struct retro_game_info* info) {
     // Checking if the core tries to load without content
     bool booting_without_content = (info == nullptr);
     bool game_is_cartridge = false;
-    std::bitset<32> compatible_regions;
     bool should_find_home_menu = false;
+    std::bitset<32> compatible_regions;
 
     // If no content is loaded, set all regions to compatible and try to find a menu
     if (booting_without_content) {
@@ -553,7 +553,9 @@ bool retro_load_game(const struct retro_game_info* info) {
         }
     }
 
-    // Check if the correct region's 3ds HOME Menu is installed.
+    // Check if the configured region's HOME Menu is installed, else check all compatible regions.
+    // This way you can a prefered region's HOME Menu installed and it will be used, otherwise a
+    // compatible region's HOME Menu will be used.
     std::string home_menu_path;
     if (should_find_home_menu) {
         const u32 configured_region = Settings::values.region_value.GetValue();
@@ -562,7 +564,7 @@ bool retro_load_game(const struct retro_game_info* info) {
             std::string candidate = Core::GetHomeMenuNcchPath(configured_region);
             if (!candidate.empty() && FileUtil::Exists(candidate)) {
                 home_menu_path = std::move(candidate);
-                LOG_INFO(Frontend, "HOME Menu of the configured region {} found and compatible: \"{}\".", configured_region, home_menu_path);
+                LOG_INFO(Frontend, "HOME Menu of the configured region {} found: \"{}\".", configured_region, home_menu_path);
             }
         }
 
@@ -583,6 +585,13 @@ bool retro_load_game(const struct retro_game_info* info) {
 
     // Determine if we should start a 3ds HOME Menu or the content directly.
     bool menu_is_present = !home_menu_path.empty();
+
+    // The Chinese and Taiwanese HOME Menu are not compatible with New 3DS mode as it was never
+    // released there. Therefor we disable it to avoid issues with the system.
+    if (menu_is_present && (home_menu_path == Core::GetHomeMenuNcchPath(4) || home_menu_path == Core::GetHomeMenuNcchPath(6))) {
+        Settings::values.is_new_3ds = false;
+    }
+
     if (booting_without_content) {
         if (!menu_is_present) {
             LOG_WARNING(Frontend, "No HOME Menu is installed.");
@@ -590,7 +599,6 @@ bool retro_load_game(const struct retro_game_info* info) {
             return false;
         }
         LOG_INFO(Frontend, "Booting HOME Menu \"{}\" with no cartridge inserted.", home_menu_path);
-        // IF REGION = CH or TW then turn off NEW 3ds MODE
         LibRetro::settings.file_path = home_menu_path;
     } else if (game_is_cartridge) {
         if (!menu_is_present) {
@@ -599,7 +607,6 @@ bool retro_load_game(const struct retro_game_info* info) {
         } else {
             LOG_INFO(Frontend, "Booting HOME Menu \"{}\" with \"{}\" in the cartridge slot.", home_menu_path, info->path);
             LibRetro::DisplayMessage("Booting HOME Menu with content inserted in the cartridge slot.");
-            // IF REGION = CH or TW then turn off NEW 3ds MODE
             Core::System::GetInstance().InsertCartridge(info->path);
             LibRetro::settings.file_path = home_menu_path;
         }
